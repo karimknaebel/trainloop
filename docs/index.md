@@ -6,13 +6,16 @@ icon: lucide/flag
 
 `trainloop` is a minimalist PyTorch training loop that centralizes the routine sequencing (state builds, accumulation, retries) while leaving distributed setup and model construction under user control.
 
+!!! note
+    trainloop does not initialize process groups or wrap your model. Set up DDP/FSDP yourself and return the wrapped module from `build_model`.
+
 ## What BaseTrainer handles
 
 `BaseTrainer` stays intentionally small. Out of the box it:
 
-- Builds and restores state for the data loader, model, optimizer, scheduler, and optional grad scaler in a DDP/FSDP-friendly order.
-- Runs a resilient step loop that supports gradient accumulation, mixed precision, scale management, NaN/Inf guarding, and data/step timing across single or distributed devices.
-- Pushes everything else into hooks. Progress output, checkpoint IO, wandb logging, CUDA memory tracking, and validation all ship as hooks, which makes it easy to compose your own.
+- Builds and restores the data loader, model, optimizer, scheduler, and optional grad scaler in a DDP/FSDP-friendly order.
+- Runs a resilient step loop with gradient accumulation, mixed precision, scale management, non-finite checks, and data/step timing across single or distributed devices.
+- Pushes everything else into hooks: progress output, checkpoint I/O, wandb logging, CUDA memory tracking, validation, and custom side effects.
 
 Because nearly every behavior lives behind hooks, most real-world setups fit without forking the code. When you do need something exotic, the trainer is compact enough to copy into your project and customize.
 
@@ -64,6 +67,9 @@ Because nearly every behavior lives behind hooks, most real-world setups fit wit
             return loss, records
     ```
 
+    !!! tip
+        Keep `forward` focused on loss + metrics and use hooks for side effects like logging or validation.
+
 2. Create and train:
 
     ```python
@@ -83,7 +89,13 @@ Because nearly every behavior lives behind hooks, most real-world setups fit wit
 3. Add hooks for logging, checkpointing, and more:
 
     ```python
-    from trainloop import BaseTrainer, ProgressHook, CheckpointingHook, LoggingHook
+    from trainloop import (
+        BaseTrainer,
+        CheckpointingHook,
+        LoggingHook,
+        ProgressHook,
+        WandbHook,
+    )
 
     class MyTrainer(BaseTrainer):
         # ... (same as above)
@@ -131,6 +143,9 @@ Subclasses must implement:
   - `loss`: The scalar loss tensor. If `None`, the backward pass is skipped and the step is retried.
   - `records`: A nested dict of numeric metrics that you want to log (e.g., `{"accuracy": 0.95, "metrics": {"f1": 0.9}}`).
 
+!!! warning
+    Returning `loss=None` skips backward/step. If you're using DDP/FSDP, avoid calling the wrapped module's `forward` when returning `None` to prevent undefined behavior.
+
 ### Optional methods
 
 You can override these to customize behavior:
@@ -146,12 +161,18 @@ Set `gradient_accumulation_steps` to accumulate gradients over multiple forward/
 - Scales the loss by `1 / gradient_accumulation_steps`.
 - Calls `model.no_sync()` during accumulation steps (if using DDP/FSDP) to skip gradient synchronization until the final step.
 
+!!! note
+    `no_sync_accumulate` defaults to `True`. Set it to `False` if you want full synchronization on every microstep.
+
 ### Mixed precision
 
 Pass `mixed_precision="fp16"` or `"bf16"` to enable automatic mixed precision training with `torch.autocast`. The trainer:
 
 - Uses `torch.amp.GradScaler` for FP16 to handle gradient scaling.
 - Disables the scaler for BF16 (which doesn't need gradient scaling).
+
+!!! note
+    FP16 uses `GradScaler` automatically; BF16 runs without scaling.
 
 ### Non-finite gradient handling
 
@@ -241,7 +262,10 @@ CheckpointingHook(
 )
 ```
 
-Checkpoints are saved as `checkpoint_step_{step}.pt`, and the latest is symlinked as `checkpoint_latest.pt`.
+Checkpoints are saved into step-numbered directories (for example `checkpoints/1000/`) that contain `model.pt`, `training_state.pt`, and any hook-provided state. The latest is symlinked as `latest`.
+
+!!! note
+    Relative checkpoint paths resolve under `workspace`. Set `workspace` on the trainer to keep per-run artifacts together.
 
 #### `CudaMaxMemoryHook`
 
@@ -366,18 +390,6 @@ avg = key_average(records)
 ```
 
 Used internally by hooks to aggregate metrics.
-
----
-
-::: trainloop
-    options:
-        show_root_heading: true
-        heading: "API reference"
-        toc_label: "API reference"
-        summary:
-            attributes: true
-            classes: true
-            functions: true
 
 ---
 
