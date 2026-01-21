@@ -4,7 +4,7 @@
 
 Minimal PyTorch training loop with hooks for logging, checkpointing, and customization.
 
-Docs: https://kabouzeid.github.io/trainloop/
+Docs: https://karimknaebel.github.io/trainloop/
 
 ## Install
 

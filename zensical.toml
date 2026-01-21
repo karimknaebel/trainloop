@@ -2,8 +2,8 @@
 site_name = "trainloop"
 site_description = "Documentation for trainloop. Minimal PyTorch training loop with hooks and checkpointing."
 site_author = "Karim Abou Zeid"
-repo_url = "https://github.com/kabouzeid/trainloop"
-repo_name = "kabouzeid/trainloop"
+repo_url = "https://github.com/karimknaebel/trainloop"
+repo_name = "karimknaebel/trainloop"
 edit_uri = "edit/main/docs/"
 nav = [
   { "Overview" = "index.md" },
