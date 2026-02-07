@@ -392,9 +392,7 @@ class CheckpointingHook(BaseHook):
 
             trainer.logger.info(f"=> Loading checkpoint from {load_path} ...")
             state_dict = {
-                file.with_suffix("").name: torch.load(
-                    file, map_location=trainer.device, weights_only=True
-                )
+                file.with_suffix("").name: torch.load(file, map_location=trainer.device)
                 for file in load_path.iterdir()
                 if file.is_file() and file.suffix == ".pt"
             }
