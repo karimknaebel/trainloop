@@ -101,6 +101,7 @@ class _StatsHook(BaseHook):
         self.grad_norms = []
         self.data_times = []
         self.step_times = []
+        self.non_finite_grad_retry_counts = []
         self.max_memories = []
 
     def on_after_step(self, trainer: BaseTrainer):
@@ -111,6 +112,9 @@ class _StatsHook(BaseHook):
         self.records_ls.append(key_average(trainer.step_info["records"]))
         self.data_times.append(sum(trainer.step_info["data_time"]))  # total
         self.step_times.append(trainer.step_info["step_time"])
+        self.non_finite_grad_retry_counts.append(
+            trainer.step_info["non_finite_grad_retry_count"]
+        )
         if "max_memory" in trainer.step_info:
             self.max_memories.append(trainer.step_info["max_memory"])
 
@@ -121,6 +125,9 @@ class _StatsHook(BaseHook):
             records = key_average(self.records_ls)
             data_time = sum(self.data_times) / len(self.data_times)
             step_time = sum(self.step_times) / len(self.step_times)
+            non_finite_grad_retry_count = sum(self.non_finite_grad_retry_counts) / len(
+                self.non_finite_grad_retry_counts
+            )
             max_memory = max(self.max_memories) if self.max_memories else None
 
             if self.sync and _dist_world_size() > 1:
@@ -136,12 +143,16 @@ class _StatsHook(BaseHook):
                         "records": records,
                         "data_time": data_time,
                         "step_time": step_time,
+                        "non_finite_grad_retry_count": non_finite_grad_retry_count,
                         "max_memory": max_memory,
                     },
                 )
                 records = key_average([stat["records"] for stat in gathered])
                 data_time = sum(stat["data_time"] for stat in gathered) / len(gathered)
                 step_time = sum(stat["step_time"] for stat in gathered) / len(gathered)
+                non_finite_grad_retry_count = sum(
+                    stat["non_finite_grad_retry_count"] for stat in gathered
+                ) / len(gathered)
                 if "max_memory" in trainer.step_info:
                     max_memory = max(stat["max_memory"] for stat in gathered)
 
@@ -151,6 +162,7 @@ class _StatsHook(BaseHook):
                 grad_norm.item() if grad_norm is not None else None,
                 step_time,
                 data_time,
+                non_finite_grad_retry_count,
                 max_memory,
                 records,
             )
@@ -163,6 +175,7 @@ class _StatsHook(BaseHook):
         grad_norm: float | None,
         step_time: float,
         data_time: float,
+        non_finite_grad_retry_count: float,
         max_memory: float | None,
         records: Records,
     ):
@@ -250,6 +263,7 @@ class ProgressHook(_StatsHook):
         grad_norm: float | None,
         step_time: float,
         data_time: float,
+        non_finite_grad_retry_count: float,
         max_memory: float | None,
         records: Records,
     ):
@@ -302,6 +316,7 @@ class LoggingHook(_StatsHook):
         grad_norm: float | None,
         step_time: float,
         data_time: float,
+        non_finite_grad_retry_count: float,
         max_memory: float | None,
         records: Records,
     ):
@@ -318,6 +333,7 @@ class LoggingHook(_StatsHook):
                     "loss": loss,
                     "data_time": data_time,
                     "step_time": step_time,
+                    "non_finite_grad_retry_count": non_finite_grad_retry_count,
                     "lr": {f"group_{i}": lr for i, lr in lrs},
                 }
             }

@@ -204,6 +204,7 @@ class BaseTrainer:
         reset_step_info()
         self.step_info["data_time"] = []
         non_finite_grad_retry_count = 0
+        self.step_info["non_finite_grad_retry_count"] = non_finite_grad_retry_count
         i_acc = 0
         while i_acc < self.gradient_accumulation_steps:
             is_accumulating = i_acc < self.gradient_accumulation_steps - 1
@@ -275,6 +276,7 @@ class BaseTrainer:
                             < self.max_non_finite_grad_retries
                         ):
                             non_finite_grad_retry_count += 1
+                            self.step_info["non_finite_grad_retry_count"] = non_finite_grad_retry_count
                             self.logger.warning(
                                 f"Gradient is non-finite. Retrying step {self.step} (retry {non_finite_grad_retry_count}"
                                 + (
