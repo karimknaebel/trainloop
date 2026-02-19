@@ -248,7 +248,7 @@ class ProgressHook(_StatsHook):
     def on_before_step(self, trainer: BaseTrainer):
         super().on_before_step(trainer)
         self.lrs = [
-            (i, param_group["lr"])
+            (param_group.get("name", str(i)), param_group["lr"])
             for i, param_group in enumerate(trainer.optimizer.param_groups)
         ]  # record the LR before the scheduler steps
 
@@ -279,7 +279,7 @@ class ProgressHook(_StatsHook):
             )
             + f" loss {loss:.4f}"
             + (f" grad_norm {grad_norm:.4f}" if grad_norm is not None else "")
-            + (" " + " ".join(f"lr_{i} {lr:.2e}" for i, lr in self.lrs))
+            + (" " + " ".join(f"lr/{name} {lr:.2e}" for name, lr in self.lrs))
             + (
                 (
                     " | "
@@ -321,7 +321,7 @@ class LoggingHook(_StatsHook):
         records: Records,
     ):
         lrs = [
-            (i, param_group["lr"])
+            (param_group.get("name", f"group_{i}"), param_group["lr"])
             for i, param_group in enumerate(trainer.optimizer.param_groups)
         ]
         trainer.log(
@@ -334,7 +334,7 @@ class LoggingHook(_StatsHook):
                     "data_time": data_time,
                     "step_time": step_time,
                     "non_finite_grad_retry_count": non_finite_grad_retry_count,
-                    "lr": {f"group_{i}": lr for i, lr in lrs},
+                    "lr": {name: lr for name, lr in lrs},
                 }
             }
         )
