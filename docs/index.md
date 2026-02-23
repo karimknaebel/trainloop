@@ -253,7 +253,8 @@ Saves checkpoints at regular intervals and handles automatic resuming.
 CheckpointingHook(
     interval=1000,              # save every N steps
     keep_previous=2,            # keep the last N checkpoints
-    keep_interval=5000,         # keep checkpoints every N steps (in addition to the last N)
+    keep_interval=5000,         # save and keep checkpoints every N steps (in addition to the last N)
+    keep_steps=[9000],          # keep checkpoints at explicit steps (also forces a save on those steps)
     path="checkpoints",         # directory to save checkpoints (relative to workspace)
     load="latest",              # load the latest checkpoint in the workspace on startup ("latest", a specific path, or None)
     exit_signals=[signal.SIGTERM, signal.SIGINT],  # save on these signals before exiting

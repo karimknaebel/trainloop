@@ -346,7 +346,8 @@ class CheckpointingHook(BaseHook):
     Args:
         interval: Save every ``interval`` steps.
         keep_previous: Keep the last N checkpoints in addition to the latest.
-        keep_interval: Keep checkpoints every ``keep_interval`` steps.
+        keep_interval: Save and keep checkpoints every ``keep_interval`` steps.
+        keep_steps: Save and keep checkpoints at these explicit step numbers.
         path: Directory (relative to workspace unless absolute) for checkpoints.
         load: Path to load at startup or ``\"latest\"`` to auto-resume.
         exit_signals: Signals that trigger a checkpoint then exit.
@@ -358,7 +359,8 @@ class CheckpointingHook(BaseHook):
         self,
         interval: int,
         keep_previous: int = 0,  # keep N previous checkpoints
-        keep_interval: int = 0,  # keep checkpoints of every N-th step
+        keep_interval: int = 0,  # save and keep checkpoints of every N-th step
+        keep_steps: Sequence[int] | None = None,  # save and keep checkpoints at these steps
         path: Path | str = "checkpoints",
         load: Path | str | Literal["latest"] | None = "latest",
         exit_signals: list[signal.Signals] | signal.Signals = None,
@@ -370,6 +372,7 @@ class CheckpointingHook(BaseHook):
         self.interval = interval
         self.keep_previous = keep_previous
         self.keep_interval = keep_interval
+        self.keep_steps = set(keep_steps or [])
         self.path = Path(path)
         self.load_path = Path(load) if load is not None else None
 
@@ -435,18 +438,23 @@ class CheckpointingHook(BaseHook):
             save_and_exit = exit_signal != -1
 
         # NOTE: Check if last step here (not in on_after_train) to avoid saving twice
-        if (
+        should_keep = trainer.step in self.keep_steps or (
+            self.keep_interval > 0 and trainer.step % self.keep_interval == 0
+        )
+        should_save = (
             trainer.step % self.interval == 0
             or trainer.step == trainer.max_steps
+            or should_keep
             or save_and_exit
-        ):
+        )
+        if should_save:
             if save_and_exit:
                 trainer.logger.info(
                     f"=> Caught signal {exit_signal}. Saving checkpoint before exit ..."
                 )
             self._save_checkpoint(
                 trainer,
-                keep=self.keep_interval > 0 and trainer.step % self.keep_interval == 0,
+                keep=should_keep,
             )
             if save_and_exit:
                 _dist_barrier()
