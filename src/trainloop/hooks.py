@@ -360,7 +360,8 @@ class CheckpointingHook(BaseHook):
         interval: int,
         keep_previous: int = 0,  # keep N previous checkpoints
         keep_interval: int = 0,  # save and keep checkpoints of every N-th step
-        keep_steps: Sequence[int] | None = None,  # save and keep checkpoints at these steps
+        keep_steps: Sequence[int]
+        | None = None,  # save and keep checkpoints at these steps
         path: Path | str = "checkpoints",
         load: Path | str | Literal["latest"] | None = "latest",
         exit_signals: list[signal.Signals] | signal.Signals = None,

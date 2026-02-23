@@ -276,7 +276,9 @@ class BaseTrainer:
                             < self.max_non_finite_grad_retries
                         ):
                             non_finite_grad_retry_count += 1
-                            self.step_info["non_finite_grad_retry_count"] = non_finite_grad_retry_count
+                            self.step_info["non_finite_grad_retry_count"] = (
+                                non_finite_grad_retry_count
+                            )
                             self.logger.warning(
                                 f"Gradient is non-finite. Retrying step {self.step} (retry {non_finite_grad_retry_count}"
                                 + (
