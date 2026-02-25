@@ -1,6 +1,6 @@
 [project]
 name = "trainloop"
-version = "0.4.0"
+version = "0.5.0"
 description = "Minimal PyTorch training loop with hooks and checkpointing."
 readme = "README.md"
 authors = [
