@@ -269,7 +269,7 @@ class ProgressHook(_StatsHook):
     ):
         eta = self.eta_tracker.get_eta(trainer.max_steps - trainer.step)
         trainer.logger.info(
-            f"Step {trainer.step:>{len(str(trainer.max_steps))}}/{trainer.max_steps}:"
+            f"Step {trainer.step}/{trainer.max_steps}:"
             + f" step {step_time:.4f}{'s' if self.show_units else ''} data {data_time:.4f}{'s' if self.show_units else ''}"
             + (f" eta {eta}" if eta is not None else "")
             + (
