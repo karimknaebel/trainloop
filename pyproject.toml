@@ -4,7 +4,7 @@ version = "0.5.0"
 description = "Minimal PyTorch training loop with hooks and checkpointing."
 readme = "README.md"
 authors = [
-    { name = "Karim Abou Zeid", email = "contact@ka.codes" }
+    { name = "Karim Knaebel", email = "contact@knaebel.dev" }
 ]
 requires-python = ">=3.10"
 dependencies = [

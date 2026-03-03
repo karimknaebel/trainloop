@@ -1,7 +1,7 @@
 [project]
 site_name = "trainloop"
 site_description = "Documentation for trainloop. Minimal PyTorch training loop with hooks and checkpointing."
-site_author = "Karim Abou Zeid"
+site_author = "Karim Knaebel"
 repo_url = "https://github.com/karimknaebel/trainloop"
 repo_name = "karimknaebel/trainloop"
 edit_uri = "edit/main/docs/"
