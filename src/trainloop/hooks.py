@@ -309,6 +309,13 @@ class LoggingHook(_StatsHook):
     ):
         super().__init__(interval, sync)
 
+    def on_before_step(self, trainer: BaseTrainer):
+        super().on_before_step(trainer)
+        self.lrs = [
+            (param_group.get("name", f"group_{i}"), param_group["lr"])
+            for i, param_group in enumerate(trainer.optimizer.param_groups)
+        ]  # record the LR before the scheduler steps
+
     def process_stats(
         self,
         trainer: BaseTrainer,
@@ -320,10 +327,6 @@ class LoggingHook(_StatsHook):
         max_memory: float | None,
         records: Records,
     ):
-        lrs = [
-            (param_group.get("name", f"group_{i}"), param_group["lr"])
-            for i, param_group in enumerate(trainer.optimizer.param_groups)
-        ]
         trainer.log(
             {
                 "train": records
@@ -334,7 +337,7 @@ class LoggingHook(_StatsHook):
                     "data_time": data_time,
                     "step_time": step_time,
                     "non_finite_grad_retry_count": non_finite_grad_retry_count,
-                    "lr": {name: lr for name, lr in lrs},
+                    "lr": {name: lr for name, lr in self.lrs},
                 }
             }
         )
