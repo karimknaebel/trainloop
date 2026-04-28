@@ -266,10 +266,13 @@ class BaseTrainer:
             if not is_accumulating:
                 if not self.grad_scaler.is_enabled():
                     # only skip non-finite grads if the scaler is disabled (the scaler needs to process non-finite grads to adjust the scale)
-                    if any(
-                        (not torch.isfinite(p.grad).all())
-                        for p in self.model.parameters()
-                        if p.grad is not None
+                    # checking for finite norm is faster than looping over grads in python
+                    if not torch.isfinite(
+                        torch.nn.utils.get_total_norm(
+                            p.grad
+                            for p in self.model.parameters()
+                            if p.grad is not None
+                        )
                     ):
                         if self.max_non_finite_grad_retries is None or (
                             non_finite_grad_retry_count
