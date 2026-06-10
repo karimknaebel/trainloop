@@ -5,6 +5,7 @@ import sys
 import tempfile
 import time
 import warnings
+from dataclasses import dataclass
 from datetime import timedelta
 from numbers import Number
 from pathlib import Path
@@ -78,21 +79,38 @@ class BaseHook:
         pass
 
 
-class _StatsHook(BaseHook):
-    """Collect step statistics and hand them to subclasses for reporting.
+@dataclass(frozen=True)
+class TrainingStats:
+    loss: float
+    grad_norm: float | None
+    step_time: float
+    data_time: float
+    non_finite_grad_retry_count: float
+    max_memory: float | None
+    records: Records
+    param_groups: list[dict[str, Any]]
+
+
+class StatsHook(BaseHook):
+    """Aggregate training stats and pass them to a callback.
 
     Args:
         interval: Emit stats every N steps.
         sync: If True, aggregate stats across distributed ranks.
+        callback: Function called with the trainer and aggregated stats.
     """
 
     def __init__(
         self,
-        interval: int,
-        sync: bool,
+        callback: Callable[[BaseTrainer, TrainingStats], None],
+        interval: int = 10,
+        sync: bool = True,
+        param_group_keys: Sequence[str] = ("name", "lr"),
     ):
         self.interval = interval
         self.sync = sync
+        self.callback = callback
+        self.param_group_keys = tuple(param_group_keys)
         self.reset()
 
     def reset(self):
@@ -103,6 +121,13 @@ class _StatsHook(BaseHook):
         self.step_times = []
         self.non_finite_grad_retry_counts = []
         self.max_memories = []
+
+    def on_before_step(self, trainer: BaseTrainer):
+        super().on_before_step(trainer)
+        self.param_groups = [
+            {k: param_group[k] for k in self.param_group_keys if k in param_group}
+            for param_group in trainer.optimizer.param_groups
+        ]  # record the LR before the scheduler steps
 
     def on_after_step(self, trainer: BaseTrainer):
         # collect and aggregate over accumulation steps
@@ -156,30 +181,20 @@ class _StatsHook(BaseHook):
                 if "max_memory" in trainer.step_info:
                     max_memory = max(stat["max_memory"] for stat in gathered)
 
-            self.process_stats(
+            self.callback(
                 trainer,
-                loss.item(),
-                grad_norm.item() if grad_norm is not None else None,
-                step_time,
-                data_time,
-                non_finite_grad_retry_count,
-                max_memory,
-                records,
+                TrainingStats(
+                    loss=loss.item(),
+                    grad_norm=grad_norm.item() if grad_norm is not None else None,
+                    step_time=step_time,
+                    data_time=data_time,
+                    non_finite_grad_retry_count=non_finite_grad_retry_count,
+                    max_memory=max_memory,
+                    records=records,
+                    param_groups=self.param_groups,
+                ),
             )
             self.reset()
-
-    def process_stats(
-        self,
-        trainer: BaseTrainer,
-        loss: float,
-        grad_norm: float | None,
-        step_time: float,
-        data_time: float,
-        non_finite_grad_retry_count: float,
-        max_memory: float | None,
-        records: Records,
-    ):
-        raise NotImplementedError("Subclasses must implement this method.")
 
 
 class ETATracker:
@@ -212,7 +227,7 @@ class ETATracker:
         return timedelta(seconds=int(eta_seconds))
 
 
-class ProgressHook(_StatsHook):
+class ProgressHook(StatsHook):
     """Log progress to stdout with optional metrics, ETA, and memory.
 
     Args:
@@ -230,8 +245,14 @@ class ProgressHook(_StatsHook):
         sync: bool = False,
         eta_warmup: int = 10,
         show_units: bool = True,
+        param_group_keys: Sequence[str] = ("name", "lr"),
     ):
-        super().__init__(interval=interval, sync=sync)
+        super().__init__(
+            self.log_progress,
+            interval=interval,
+            sync=sync,
+            param_group_keys=param_group_keys,
+        )
         self.with_records = with_records
         self.eta_warmup = eta_warmup
         self.show_units = show_units
@@ -245,101 +266,46 @@ class ProgressHook(_StatsHook):
         super().on_after_train(trainer)
         trainer.logger.info("=> Finished training")
 
-    def on_before_step(self, trainer: BaseTrainer):
-        super().on_before_step(trainer)
-        self.lrs = [
-            (param_group.get("name", str(i)), param_group["lr"])
-            for i, param_group in enumerate(trainer.optimizer.param_groups)
-        ]  # record the LR before the scheduler steps
-
     def on_after_step(self, trainer: BaseTrainer):
-        self.eta_tracker.step()  # should be called before process_stats
+        self.eta_tracker.step()  # should be called before log_progress
         super().on_after_step(trainer)
 
-    def process_stats(
-        self,
-        trainer: BaseTrainer,
-        loss: float,
-        grad_norm: float | None,
-        step_time: float,
-        data_time: float,
-        non_finite_grad_retry_count: float,
-        max_memory: float | None,
-        records: Records,
-    ):
+    def log_progress(self, trainer: BaseTrainer, stats: TrainingStats):
         eta = self.eta_tracker.get_eta(trainer.max_steps - trainer.step)
         trainer.logger.info(
             f"Step {trainer.step}/{trainer.max_steps}:"
-            + f" step {step_time:.4f}{'s' if self.show_units else ''} data {data_time:.4f}{'s' if self.show_units else ''}"
+            + f" step {stats.step_time:.4f}{'s' if self.show_units else ''} data {stats.data_time:.4f}{'s' if self.show_units else ''}"
             + (f" eta {eta}" if eta is not None else "")
             + (
-                f" mem {max_memory:#.3g}{'GiB' if self.show_units else ''}"
-                if max_memory is not None
+                f" mem {stats.max_memory:#.3g}{'GiB' if self.show_units else ''}"
+                if stats.max_memory is not None
                 else ""
             )
-            + f" loss {loss:.4f}"
-            + (f" grad_norm {grad_norm:.4f}" if grad_norm is not None else "")
-            + (" " + " ".join(f"lr/{name} {lr:.2e}" for name, lr in self.lrs))
+            + f" loss {stats.loss:.4f}"
+            + (
+                f" grad_norm {stats.grad_norm:.4f}"
+                if stats.grad_norm is not None
+                else ""
+            )
+            + (
+                " "
+                + " ".join(
+                    f"lr/{group.get('name', f'group_{i}')} {group['lr']:.2e}"
+                    for i, group in enumerate(stats.param_groups)
+                    if "lr" in group
+                )
+            )
             + (
                 (
                     " | "
                     + " ".join(
                         f"{'/'.join(k)} {f'{v:#.4g}' if isinstance(v, Number) else v}"
-                        for k, v in flatten_nested_dict(records).items()
+                        for k, v in flatten_nested_dict(stats.records).items()
                     )
                 )
                 if self.with_records
                 else ""
             )
-        )
-
-
-class LoggingHook(_StatsHook):
-    """Aggregate stats and forward them to ``trainer.log``.
-
-    Args:
-        interval: Log every N steps.
-        sync: If True, aggregate across distributed ranks.
-    """
-
-    def __init__(
-        self,
-        interval: int = 10,
-        sync: bool = True,
-    ):
-        super().__init__(interval, sync)
-
-    def on_before_step(self, trainer: BaseTrainer):
-        super().on_before_step(trainer)
-        self.lrs = [
-            (param_group.get("name", f"group_{i}"), param_group["lr"])
-            for i, param_group in enumerate(trainer.optimizer.param_groups)
-        ]  # record the LR before the scheduler steps
-
-    def process_stats(
-        self,
-        trainer: BaseTrainer,
-        loss: float,
-        grad_norm: float | None,
-        step_time: float,
-        data_time: float,
-        non_finite_grad_retry_count: float,
-        max_memory: float | None,
-        records: Records,
-    ):
-        trainer.log(
-            {
-                "train": records
-                | ({"grad_norm": grad_norm} if grad_norm is not None else {})
-                | ({"max_memory": max_memory} if max_memory is not None else {})
-                | {
-                    "loss": loss,
-                    "data_time": data_time,
-                    "step_time": step_time,
-                    "non_finite_grad_retry_count": non_finite_grad_retry_count,
-                    "lr": {name: lr for name, lr in self.lrs},
-                }
-            }
         )
 
 

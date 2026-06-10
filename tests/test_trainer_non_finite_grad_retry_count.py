@@ -2,7 +2,7 @@ import itertools
 
 import torch
 
-from trainloop import BaseHook, BaseTrainer, LoggingHook
+from trainloop import BaseHook, BaseTrainer, StatsHook
 
 
 class _CaptureLogHook(BaseHook):
@@ -33,7 +33,20 @@ class _RetryTrainer(BaseTrainer):
         return torch.optim.SGD(self.model.parameters(), lr=0.1)
 
     def build_hooks(self):
-        return [LoggingHook(interval=1, sync=False), self.capture_hook]
+        return [
+            StatsHook(
+                lambda trainer, stats: trainer.log(
+                    {
+                        "stats": {
+                            "non_finite_grad_retry_count": stats.non_finite_grad_retry_count
+                        }
+                    }
+                ),
+                interval=1,
+                sync=False,
+            ),
+            self.capture_hook,
+        ]
 
     def forward(self, input):
         self.forward_calls += 1
@@ -50,4 +63,4 @@ def test_non_finite_grad_retry_count_saved_and_logged():
     trainer.train()
 
     assert trainer.step_info["non_finite_grad_retry_count"] == 1
-    assert capture_hook.records[0]["train"]["non_finite_grad_retry_count"] == 1.0
+    assert capture_hook.records[0]["stats"]["non_finite_grad_retry_count"] == 1.0

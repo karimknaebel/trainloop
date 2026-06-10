@@ -92,8 +92,8 @@ Because nearly every behavior lives behind hooks, most real-world setups fit wit
     from trainloop import (
         BaseTrainer,
         CheckpointingHook,
-        LoggingHook,
         ProgressHook,
+        StatsHook,
         WandbHook,
     )
 
@@ -104,8 +104,18 @@ Because nearly every behavior lives behind hooks, most real-world setups fit wit
             return [
                 ProgressHook(interval=10, with_records=True),
                 CheckpointingHook(interval=1000, path=self.workspace / "checkpoints"),
-                LoggingHook(interval=100),
-                WandbHook(project="my-project"),  # requires LoggingHook
+                StatsHook(
+                    lambda trainer, stats: trainer.log({
+                        "train": {
+                            "loss": stats.loss,
+                            "lr": stats.param_groups[0]["lr"],
+                            "step_time": stats.step_time,
+                            "data_time": stats.data_time,
+                        } | stats.records
+                    }),
+                    interval=100,
+                ),
+                WandbHook(project="my-project"),
             ]
     ```
 
@@ -232,18 +242,29 @@ Example output:
 Step   100/10000: step 0.2500s data 0.0100s eta 6:00:00 loss 0.5234 grad_norm 2.3456 lr_0 1.00e-03
 ```
 
-#### `LoggingHook`
+#### `StatsHook`
 
-Aggregates metrics and calls `trainer.log(records)` at regular intervals. Use this to send metrics to experiment trackers.
+Aggregates training stats at regular intervals and passes them to a callback. The callback owns any logging schema and may call `trainer.log(records)` if the project wants to send metrics to experiment trackers.
 
 ```python
-LoggingHook(
-    interval=100,  # aggregate and log every N steps
-    sync=True,     # synchronize metrics across ranks
+StatsHook(
+    lambda trainer, stats: trainer.log({
+        "train": {
+            "loss": stats.loss,
+            "lr": stats.param_groups[0]["lr"],
+            "step_time": stats.step_time,
+            "records": stats.records,
+        },
+    }),
+    interval=100,  # aggregate and call the callback every N steps
+    sync=True,     # synchronize stats across ranks
+    param_group_keys=("name", "lr", "weight_decay"),
 )
 ```
 
-Implement `trainer.log()` or add a hook that handles `on_log` (e.g. WandbHook) to handle the aggregated records.
+`param_group_keys` controls which optimizer param-group fields are sampled. This is useful for values like learning rate because schedulers usually update them for the next step after the current step finishes.
+
+Add a hook that handles `on_log` (e.g. WandbHook) if the callback calls `trainer.log()`.
 
 #### `CheckpointingHook`
 

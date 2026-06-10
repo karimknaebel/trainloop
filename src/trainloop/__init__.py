@@ -4,8 +4,9 @@ from .hooks import (
     CudaMaxMemoryHook,
     EmaHook,
     ImageFileLoggerHook,
-    LoggingHook,
     ProgressHook,
+    StatsHook,
+    TrainingStats,
     WandbHook,
 )
 from .trainer import BaseTrainer, LossNoneWarning, map_nested_tensor
@@ -15,8 +16,9 @@ __all__ = [
     "BaseHook",
     "CheckpointingHook",
     "CudaMaxMemoryHook",
-    "LoggingHook",
     "ProgressHook",
+    "StatsHook",
+    "TrainingStats",
     "EmaHook",
     "WandbHook",
     "ImageFileLoggerHook",
