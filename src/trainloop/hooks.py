@@ -597,7 +597,8 @@ class WandbHook(BaseHook):
         project: W&B project name.
         config: Optional config dict or JSON file path to log.
         tags: Optional tag list.
-        image_format: File format for images or a callable to derive it per key.
+        image_format: File format for images or a callable taking the flattened
+            image key and returning the format.
         **wandb_kwargs: Extra arguments forwarded to ``wandb.init``.
     """
 
@@ -606,7 +607,7 @@ class WandbHook(BaseHook):
         project: str,
         config: dict[str, Any] | str | None = None,
         tags: Sequence[str] | None = None,
-        image_format: str | None | Callable[[str], str | None] = "png",
+        image_format: str | None | Callable[[tuple[str, ...]], str | None] = "png",
         **wandb_kwargs,
     ):
         self.project = project
@@ -655,7 +656,7 @@ class WandbHook(BaseHook):
         if _dist_rank() == 0:
             wandb_data = {}
             for k, img in flatten_nested_dict({"vis": records}).items():
-                file_type = self.image_format(k[-1])
+                file_type = self.image_format(k)
                 wandb_data.setdefault("/".join(k[:-1]), []).append(
                     wandb.Image(
                         self._ensure_jpeg_compatible(img)
@@ -705,12 +706,12 @@ class ImageFileLoggerHook(BaseHook):
     """Persist logged images to ``workspace/visualizations`` on rank 0.
 
     Args:
-        image_format: File extension or callable taking the leaf key.
+        image_format: File extension or callable taking the flattened image key.
     """
 
     def __init__(
         self,
-        image_format: str | Callable[[str], str] = "png",
+        image_format: str | Callable[[tuple[str, ...]], str] = "png",
     ):
         if callable(image_format):
             self.image_format = image_format
@@ -721,7 +722,7 @@ class ImageFileLoggerHook(BaseHook):
         if _dist_rank() == 0:
             for k, img in flatten_nested_dict(records).items():
                 p = trainer.workspace / "visualizations" / str(trainer.step) / Path(*k)
-                p = Path(str(p) + "." + self.image_format(k[-1]))
+                p = Path(str(p) + "." + self.image_format(k))
                 if not dry_run:
                     p.parent.mkdir(parents=True, exist_ok=True)
                     img.save(p)

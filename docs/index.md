@@ -320,12 +320,13 @@ WandbHook(
     project="my-project",
     name="experiment-1",
     config={"lr": 1e-3, "batch_size": 32},
-    image_format = "png",
+    image_format=lambda key: "jpeg" if key[-2] == "mesh" else "png",
     # ... (other wandb.init arguments)
 )
 ```
 
-Call `trainer.log()` and `trainer.log_images()` to send data to wandb.
+Call `trainer.log()` and `trainer.log_images()` to send data to wandb. If
+`image_format` is callable, it receives the full flattened image key as a tuple.
 
 #### `ImageFileLoggerHook`
 
@@ -333,11 +334,12 @@ Saves images to disk (useful for debugging or visualization).
 
 ```python
 ImageFileLoggerHook(
-    image_format = "png",
+    image_format=lambda key: "jpg" if key[0] == "mesh" else "png",
 )
 ```
 
-Call `trainer.log_images({"image_name": pil_image})` to save images.
+Call `trainer.log_images({"image_name": pil_image})` to save images. If
+`image_format` is callable, it receives the full flattened image key as a tuple.
 
 ---
 
