@@ -289,12 +289,12 @@ Checkpoints are saved into step-numbered directories (for example `checkpoints/1
 !!! note
     Relative checkpoint paths resolve under `workspace`. Set `workspace` on the trainer to keep per-run artifacts together.
 
-#### `CudaMaxMemoryHook`
+#### `CUDAMaxMemoryHook`
 
 Tracks and logs the maximum GPU memory allocated during training.
 
 ```python
-CudaMaxMemoryHook()
+CUDAMaxMemoryHook()
 ```
 
 Adds `max_memory` (in GiB) to `trainer.step_info` for other hooks to use.

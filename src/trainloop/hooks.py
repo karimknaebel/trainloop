@@ -556,7 +556,7 @@ class CheckpointingHook(BaseHook):
             return False
 
 
-class CudaMaxMemoryHook(BaseHook):
+class CUDAMaxMemoryHook(BaseHook):
     """Record peak CUDA memory per step into ``trainer.step_info``."""
 
     def on_before_step(self, trainer: BaseTrainer):

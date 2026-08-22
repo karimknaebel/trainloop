@@ -1,7 +1,7 @@
 from .hooks import (
     BaseHook,
     CheckpointingHook,
-    CudaMaxMemoryHook,
+    CUDAMaxMemoryHook,
     EmaHook,
     ImageFileLoggerHook,
     ProgressHook,
@@ -15,7 +15,7 @@ __all__ = [
     "BaseTrainer",
     "BaseHook",
     "CheckpointingHook",
-    "CudaMaxMemoryHook",
+    "CUDAMaxMemoryHook",
     "ProgressHook",
     "StatsHook",
     "TrainingStats",
