@@ -13,8 +13,6 @@ from typing import Any, Callable, Iterable, Literal, Sequence
 
 import torch
 import torch.distributed as dist
-from PIL import Image
-from PIL.Image import Image as PILImage
 from torch.distributed.checkpoint.state_dict import (
     get_model_state_dict,
     set_model_state_dict,
@@ -25,6 +23,13 @@ try:
     import wandb
 except ImportError:
     # only needed for WandbHook
+    pass
+
+try:
+    from PIL import Image
+    from PIL.Image import Image as PILImage
+except ImportError:
+    # only needed for WandbHook JPEG conversion
     pass
 
 from .trainer import BaseTrainer, Records
@@ -673,7 +678,7 @@ class WandbHook(BaseHook):
                 trainer.logger.debug(f"Dry run log. Would log: {wandb_data}")
 
     @staticmethod
-    def _ensure_jpeg_compatible(img: PILImage, bg_color: tuple = (255, 255, 255)):
+    def _ensure_jpeg_compatible(img: "PILImage", bg_color: tuple = (255, 255, 255)):
         if img.mode in ("RGB", "L"):
             return img
         elif img.mode in ("RGBA", "LA"):

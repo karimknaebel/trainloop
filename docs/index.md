@@ -327,6 +327,7 @@ WandbHook(
 
 Call `trainer.log()` and `trainer.log_images()` to send data to wandb. If
 `image_format` is callable, it receives the full flattened image key as a tuple.
+`WandbHook` expects PIL images.
 
 #### `ImageFileLoggerHook`
 
@@ -340,6 +341,7 @@ ImageFileLoggerHook(
 
 Call `trainer.log_images({"image_name": pil_image})` to save images. If
 `image_format` is callable, it receives the full flattened image key as a tuple.
+`ImageFileLoggerHook` expects PIL images.
 
 ---
 
