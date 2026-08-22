@@ -14,11 +14,17 @@ class _CaptureLogHook(BaseHook):
 
 
 class _RetryTrainer(BaseTrainer):
-    def __init__(self, capture_hook: _CaptureLogHook):
+    def __init__(
+        self,
+        capture_hook: _CaptureLogHook,
+        max_steps: int = 1,
+        stats_interval: int = 1,
+    ):
         self.capture_hook = capture_hook
         self.forward_calls = 0
+        self.stats_interval = stats_interval
         super().__init__(
-            max_steps=1,
+            max_steps=max_steps,
             max_non_finite_grad_retries=1,
             device="cpu",
         )
@@ -38,11 +44,11 @@ class _RetryTrainer(BaseTrainer):
                 lambda trainer, stats: trainer.log(
                     {
                         "stats": {
-                            "non_finite_grad_retry_count": stats.non_finite_grad_retry_count
+                            "non_finite_grad_retries": stats.non_finite_grad_retries
                         }
                     }
                 ),
-                interval=1,
+                interval=self.stats_interval,
                 sync=False,
             ),
             self.capture_hook,
@@ -56,11 +62,20 @@ class _RetryTrainer(BaseTrainer):
         return loss, {"metric": 1.0}
 
 
-def test_non_finite_grad_retry_count_saved_and_logged():
+def test_non_finite_grad_retries_saved_and_logged():
     capture_hook = _CaptureLogHook()
     trainer = _RetryTrainer(capture_hook)
 
     trainer.train()
 
-    assert trainer.step_info["non_finite_grad_retry_count"] == 1
-    assert capture_hook.records[0]["stats"]["non_finite_grad_retry_count"] == 1.0
+    assert trainer.step_info["non_finite_grad_retries"] == 1
+    assert capture_hook.records[0]["stats"]["non_finite_grad_retries"] == 1.0
+
+
+def test_non_finite_grad_retries_averaged_over_steps():
+    capture_hook = _CaptureLogHook()
+    trainer = _RetryTrainer(capture_hook, max_steps=2, stats_interval=2)
+
+    trainer.train()
+
+    assert capture_hook.records[0]["stats"]["non_finite_grad_retries"] == 0.5
