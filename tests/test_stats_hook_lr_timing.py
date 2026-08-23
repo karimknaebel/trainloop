@@ -109,9 +109,7 @@ def test_cuda_max_memory_hook_uses_cuda_max_memory_key(monkeypatch):
     trainer = type("Trainer", (), {"device": "cuda", "step_info": {}})()
     hook = CUDAMaxMemoryHook()
     monkeypatch.setattr(torch.cuda, "reset_peak_memory_stats", lambda device: None)
-    monkeypatch.setattr(
-        torch.cuda, "max_memory_allocated", lambda device: 3 * 1024**3
-    )
+    monkeypatch.setattr(torch.cuda, "max_memory_allocated", lambda device: 3 * 1024**3)
 
     hook.on_before_step(trainer)
     hook.on_after_step(trainer)

@@ -190,9 +190,7 @@ class StatsHook(BaseHook):
                     stat["non_finite_grad_retries"] for stat in gathered
                 ) / len(gathered)
                 if "cuda_max_memory" in trainer.step_info:
-                    cuda_max_memory = max(
-                        stat["cuda_max_memory"] for stat in gathered
-                    )
+                    cuda_max_memory = max(stat["cuda_max_memory"] for stat in gathered)
 
             self.callback(
                 trainer,
