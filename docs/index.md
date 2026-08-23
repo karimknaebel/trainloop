@@ -297,7 +297,7 @@ Tracks and logs the maximum GPU memory allocated during training.
 CUDAMaxMemoryHook()
 ```
 
-Adds `max_memory` (in GiB) to `trainer.step_info` for other hooks to use.
+Adds `cuda_max_memory` (in GiB) to `trainer.step_info` for other hooks to use.
 
 #### `EmaHook`
 

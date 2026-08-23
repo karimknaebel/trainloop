@@ -91,7 +91,7 @@ class TrainingStats:
     step_time: float
     data_time: float
     non_finite_grad_retries: float
-    max_memory: float | None
+    cuda_max_memory: float | None
     records: Records
     param_groups: list[dict[str, Any]]
 
@@ -125,7 +125,7 @@ class StatsHook(BaseHook):
         self.data_times = []
         self.step_times = []
         self.non_finite_grad_retries = []
-        self.max_memories = []
+        self.cuda_max_memories = []
 
     def on_before_step(self, trainer: BaseTrainer):
         super().on_before_step(trainer)
@@ -145,8 +145,8 @@ class StatsHook(BaseHook):
         self.non_finite_grad_retries.append(
             trainer.step_info["non_finite_grad_retries"]
         )
-        if "max_memory" in trainer.step_info:
-            self.max_memories.append(trainer.step_info["max_memory"])
+        if "cuda_max_memory" in trainer.step_info:
+            self.cuda_max_memories.append(trainer.step_info["cuda_max_memory"])
 
         if trainer.step % self.interval == 0 or trainer.step == trainer.max_steps:
             # aggregate over steps
@@ -158,7 +158,9 @@ class StatsHook(BaseHook):
             non_finite_grad_retries = sum(self.non_finite_grad_retries) / len(
                 self.non_finite_grad_retries
             )
-            max_memory = max(self.max_memories) if self.max_memories else None
+            cuda_max_memory = (
+                max(self.cuda_max_memories) if self.cuda_max_memories else None
+            )
 
             if self.sync and _dist_world_size() > 1:
                 # aggregate accross all ranks
@@ -174,7 +176,7 @@ class StatsHook(BaseHook):
                         "data_time": data_time,
                         "step_time": step_time,
                         "non_finite_grad_retries": non_finite_grad_retries,
-                        "max_memory": max_memory,
+                        "cuda_max_memory": cuda_max_memory,
                     },
                 )
                 records = key_average([stat["records"] for stat in gathered])
@@ -183,8 +185,10 @@ class StatsHook(BaseHook):
                 non_finite_grad_retries = sum(
                     stat["non_finite_grad_retries"] for stat in gathered
                 ) / len(gathered)
-                if "max_memory" in trainer.step_info:
-                    max_memory = max(stat["max_memory"] for stat in gathered)
+                if "cuda_max_memory" in trainer.step_info:
+                    cuda_max_memory = max(
+                        stat["cuda_max_memory"] for stat in gathered
+                    )
 
             self.callback(
                 trainer,
@@ -194,7 +198,7 @@ class StatsHook(BaseHook):
                     step_time=step_time,
                     data_time=data_time,
                     non_finite_grad_retries=non_finite_grad_retries,
-                    max_memory=max_memory,
+                    cuda_max_memory=cuda_max_memory,
                     records=records,
                     param_groups=self.param_groups,
                 ),
@@ -282,8 +286,8 @@ class ProgressHook(StatsHook):
             + f" step {stats.step_time:.4f}{'s' if self.show_units else ''} data {stats.data_time:.4f}{'s' if self.show_units else ''}"
             + (f" eta {eta}" if eta is not None else "")
             + (
-                f" mem {stats.max_memory:#.3g}{'GiB' if self.show_units else ''}"
-                if stats.max_memory is not None
+                f" mem {stats.cuda_max_memory:#.3g}{'GiB' if self.show_units else ''}"
+                if stats.cuda_max_memory is not None
                 else ""
             )
             + f" loss {stats.loss:.4f}"
@@ -563,7 +567,7 @@ class CUDAMaxMemoryHook(BaseHook):
         torch.cuda.reset_peak_memory_stats(trainer.device)
 
     def on_after_step(self, trainer: BaseTrainer):
-        trainer.step_info["max_memory"] = torch.cuda.max_memory_allocated(
+        trainer.step_info["cuda_max_memory"] = torch.cuda.max_memory_allocated(
             trainer.device
         ) / (1024**3)  # GiB
 

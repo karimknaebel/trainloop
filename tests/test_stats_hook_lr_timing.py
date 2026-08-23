@@ -2,7 +2,12 @@ import itertools
 
 import torch
 
-from trainloop import BaseTrainer, StatsHook
+from trainloop import BaseHook, BaseTrainer, CUDAMaxMemoryHook, StatsHook
+
+
+class _CUDAMemoryHook(BaseHook):
+    def on_after_step(self, trainer):
+        trainer.step_info["cuda_max_memory"] = float(trainer.step)
 
 
 class _LRScheduleTrainer(BaseTrainer):
@@ -78,3 +83,37 @@ def test_stats_hook_reports_aggregated_stats():
     assert trainer.stats[0].records == {}
     assert isinstance(trainer.stats[0].loss, float)
     assert trainer.stats[0].grad_norm is None
+    assert trainer.stats[0].cuda_max_memory is None
+
+
+def test_stats_hook_reports_cuda_max_memory():
+    class _CUDAMemoryTrainer(_LRScheduleTrainer):
+        def build_hooks(self):
+            return [
+                _CUDAMemoryHook(),
+                StatsHook(
+                    lambda trainer, stats: self.stats.append(stats),
+                    interval=2,
+                    sync=False,
+                ),
+            ]
+
+    trainer = _CUDAMemoryTrainer()
+
+    trainer.train()
+
+    assert trainer.stats[0].cuda_max_memory == 2.0
+
+
+def test_cuda_max_memory_hook_uses_cuda_max_memory_key(monkeypatch):
+    trainer = type("Trainer", (), {"device": "cuda", "step_info": {}})()
+    hook = CUDAMaxMemoryHook()
+    monkeypatch.setattr(torch.cuda, "reset_peak_memory_stats", lambda device: None)
+    monkeypatch.setattr(
+        torch.cuda, "max_memory_allocated", lambda device: 3 * 1024**3
+    )
+
+    hook.on_before_step(trainer)
+    hook.on_after_step(trainer)
+
+    assert trainer.step_info == {"cuda_max_memory": 3.0}
