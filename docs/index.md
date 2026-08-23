@@ -299,12 +299,12 @@ CUDAMaxMemoryHook()
 
 Adds `cuda_max_memory` (in GiB) to `trainer.step_info` for other hooks to use.
 
-#### `EmaHook`
+#### `EMAHook`
 
 Maintains an exponential moving average (EMA) of model weights.
 
 ```python
-EmaHook(
+EMAHook(
     decay=0.9999,               # EMA decay rate
 )
 ```

@@ -572,7 +572,7 @@ class CUDAMaxMemoryHook(BaseHook):
         ) / (1024**3)  # GiB
 
 
-class EmaHook(BaseHook):
+class EMAHook(BaseHook):
     """Maintain an exponential moving average of model weights.
 
     Args:
