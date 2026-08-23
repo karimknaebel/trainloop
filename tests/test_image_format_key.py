@@ -2,8 +2,7 @@ from types import SimpleNamespace
 
 from PIL import Image
 
-import trainloop.hooks as hooks
-from trainloop import ImageFileLoggerHook, WandbHook
+from trainloop import ImageFileLoggerHook, WandbHook, hooks
 
 
 def test_image_file_logger_image_format_receives_full_key(tmp_path):

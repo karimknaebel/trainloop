@@ -1,6 +1,7 @@
 import logging
 import time
 import warnings
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import closing, nullcontext
 from logging import Logger
 from numbers import Number
@@ -8,15 +9,12 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Iterable,
-    Iterator,
     TypeAlias,
     Union,
 )
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.distributed.checkpoint.state_dict import (
     StateDictOptions,
     get_state_dict,

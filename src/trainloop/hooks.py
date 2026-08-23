@@ -5,11 +5,12 @@ import sys
 import tempfile
 import time
 import warnings
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from numbers import Number
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Sequence
+from typing import Any, Literal
 
 import torch
 import torch.distributed as dist
@@ -344,7 +345,7 @@ class CheckpointingHook(BaseHook):
         | None = None,  # save and keep checkpoints at these steps
         path: Path | str = "checkpoints",
         load: Path | str | Literal["latest"] | None = "latest",
-        exit_signals: list[signal.Signals] | signal.Signals = None,
+        exit_signals: list[signal.Signals] | signal.Signals | None = None,
         exit_code: int | Literal["128+signal"] = "128+signal",
         exit_wait: timedelta | float = 0.0,
     ):

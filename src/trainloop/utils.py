@@ -1,8 +1,9 @@
 # modified from: https://github.com/microsoft/MoGe/blob/6b8b43db567ca4b08615c39b42cffd6c76cada29/moge/utils/tools.py
 
 import math
+from collections.abc import Generator, MutableMapping
 from logging import Logger
-from typing import Any, Generator, MutableMapping
+from typing import Any
 
 
 def traverse_nested_dict_keys(
@@ -51,7 +52,7 @@ def key_average(list_of_dicts: list, exclude_nan: bool = False) -> dict[str, Any
 
 
 def flatten_nested_dict(
-    d: dict[str, Any], parent_key: tuple[str, ...] = None
+    d: dict[str, Any], parent_key: tuple[str, ...] | None = None
 ) -> dict[tuple[str, ...], Any]:
     """
     Flattens a nested dictionary into a single-level dictionary, with keys as tuples.
