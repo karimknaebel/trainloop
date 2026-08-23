@@ -23,6 +23,8 @@ from torch.distributed.checkpoint.state_dict import (
     set_state_dict,
 )
 
+from .utils import log_state_dict_incompatible_keys
+
 if TYPE_CHECKING:
     from .hooks import BaseHook
 
@@ -154,12 +156,17 @@ class BaseTrainer:
         self.grad_scaler.load_state_dict(training_state["grad_scaler"])
 
         self.logger.info("=> Loading model and optimizer state ...")
-        set_state_dict(
+        incompatible_keys = set_state_dict(
             self.model,
             self.optimizer,
             model_state_dict=state_dict["model"],
             optim_state_dict=training_state["optimizer"],
             options=self.state_dict_options,
+        )
+        log_state_dict_incompatible_keys(
+            self.logger,
+            incompatible_keys.missing_keys,
+            incompatible_keys.unexpected_keys,
         )
 
         self.logger.info("=> Loading hook states ...")

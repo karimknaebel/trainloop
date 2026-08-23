@@ -33,7 +33,11 @@ except ImportError:
     pass
 
 from .trainer import BaseTrainer, Records
-from .utils import flatten_nested_dict, key_average
+from .utils import (
+    flatten_nested_dict,
+    key_average,
+    log_state_dict_incompatible_keys,
+)
 
 
 def _dist_is_initialized() -> bool:
@@ -592,7 +596,15 @@ class EMAHook(BaseHook):
 
     def on_load_state_dict(self, trainer: BaseTrainer, state_dict: dict):
         trainer.logger.info("=> Loading EMA model state ...")
-        set_model_state_dict(self.ema_model, state_dict["ema_model"])
+        incompatible_keys = set_model_state_dict(
+            self.ema_model, state_dict["ema_model"]
+        )
+        # This currently doesn't do anything because strict=True is implicit.
+        log_state_dict_incompatible_keys(
+            trainer.logger,
+            incompatible_keys.missing_keys,
+            incompatible_keys.unexpected_keys,
+        )
 
     def on_state_dict(self, trainer: BaseTrainer, state_dict: dict):
         # Note: sadly, we need to keep the AveragedModel wrapper, to save its n_averaged buffer

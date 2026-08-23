@@ -1,6 +1,7 @@
 # modified from: https://github.com/microsoft/MoGe/blob/6b8b43db567ca4b08615c39b42cffd6c76cada29/moge/utils/tools.py
 
 import math
+from logging import Logger
 from typing import Any, Generator, MutableMapping
 
 
@@ -65,3 +66,20 @@ def flatten_nested_dict(
         else:
             items.append((new_key, v))
     return dict(items)
+
+
+def log_state_dict_incompatible_keys(
+    logger: Logger, missing_keys: list[str], unexpected_keys: list[str]
+) -> None:
+    if missing_keys:
+        logger.warning(
+            "Missing keys in state_dict: {}.".format(
+                ", ".join(f'"{key}"' for key in missing_keys)
+            )
+        )
+    if unexpected_keys:
+        logger.warning(
+            "Unexpected keys in state_dict: {}.".format(
+                ", ".join(f'"{key}"' for key in unexpected_keys)
+            )
+        )
