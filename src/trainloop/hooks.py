@@ -680,6 +680,15 @@ class WandbHook(BaseHook):
                 trainer.logger.debug(f"Dry run log. Would log: {data}")
 
     def on_log_images(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
+        """Note that the final component of each flattened key becomes the image caption,
+        and the remaining components become the W&B key. For example,
+        ``foo/bar/name1`` and ``foo/bar/name2`` are logged as two images under
+        ``foo/bar``, so W&B displays them together in one panel.
+
+        The list is replaced rather than extended when the same W&B key is logged
+        again at the same step. Callers should therefore collect all images for a
+        panel and pass them in a single call per step.
+        """
         if _dist_rank() == 0:
             wandb_data = {}
             for k, img in flatten_nested_dict(records).items():
