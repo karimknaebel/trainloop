@@ -580,16 +580,20 @@ class EMAHook(BaseHook):
 
     Args:
         decay: EMA decay rate.
+        use_buffers: Whether to include model buffers in the EMA.
     """
 
-    def __init__(self, decay: float):
+    def __init__(self, decay: float = 0.999, use_buffers: bool = False):
         self.decay = decay
+        self.use_buffers = use_buffers
 
     def on_before_train(self, trainer: BaseTrainer):
         trainer.logger.info("=> Creating EMA model ...")
         # Note that AveragedModel does not seem to support FSDP. It will crash here.
         self.ema_model = AveragedModel(
-            trainer.model, multi_avg_fn=get_ema_multi_avg_fn(self.decay)
+            trainer.model,
+            multi_avg_fn=get_ema_multi_avg_fn(self.decay),
+            use_buffers=self.use_buffers,
         )
 
     def on_after_step(self, trainer: BaseTrainer):

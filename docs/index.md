@@ -305,7 +305,8 @@ Maintains an exponential moving average (EMA) of model weights.
 
 ```python
 EMAHook(
-    decay=0.9999,               # EMA decay rate
+    decay=0.999,                # EMA decay rate
+    use_buffers=False,          # include model buffers in the EMA
 )
 ```
 
