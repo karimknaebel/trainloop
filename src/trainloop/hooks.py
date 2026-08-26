@@ -595,6 +595,7 @@ class EMAHook(BaseHook):
             multi_avg_fn=get_ema_multi_avg_fn(self.decay),
             use_buffers=self.use_buffers,
         )
+        # TODO: could be useful to implement a decay warmup via custom avg_fn
 
     def on_after_step(self, trainer: BaseTrainer):
         self.ema_model.update_parameters(trainer.model)
