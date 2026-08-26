@@ -18,7 +18,7 @@ from torch.distributed.checkpoint.state_dict import (
     get_model_state_dict,
     set_model_state_dict,
 )
-from torch.optim.swa_utils import AveragedModel, get_ema_avg_fn
+from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 
 try:
     import wandb
@@ -588,7 +588,9 @@ class EMAHook(BaseHook):
     def on_before_train(self, trainer: BaseTrainer):
         trainer.logger.info("=> Creating EMA model ...")
         # Note that AveragedModel does not seem to support FSDP. It will crash here.
-        self.ema_model = AveragedModel(trainer.model, avg_fn=get_ema_avg_fn(self.decay))
+        self.ema_model = AveragedModel(
+            trainer.model, multi_avg_fn=get_ema_multi_avg_fn(self.decay)
+        )
 
     def on_after_step(self, trainer: BaseTrainer):
         self.ema_model.update_parameters(trainer.model)
