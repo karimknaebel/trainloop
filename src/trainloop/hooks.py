@@ -682,7 +682,7 @@ class WandbHook(BaseHook):
     def on_log_images(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
         if _dist_rank() == 0:
             wandb_data = {}
-            for k, img in flatten_nested_dict({"vis": records}).items():
+            for k, img in flatten_nested_dict(records).items():
                 file_type = self.image_format(k)
                 wandb_data.setdefault("/".join(k[:-1]), []).append(
                     wandb.Image(

@@ -47,8 +47,10 @@ def test_wandb_hook_image_format_receives_full_key(monkeypatch):
     hook.on_log_images(
         trainer,
         {
-            "mesh": {"dataset.filename": Image.new("RGBA", (1, 1))},
-            "depth": {"dataset.filename": Image.new("RGB", (1, 1))},
+            "vis": {
+                "mesh": {"dataset.filename": Image.new("RGBA", (1, 1))},
+                "depth": {"dataset.filename": Image.new("RGB", (1, 1))},
+            }
         },
     )
 
