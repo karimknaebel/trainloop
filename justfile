@@ -2,6 +2,12 @@ test:
     uv run pytest
 
 [confirm]
+bump_release bump="minor":
+    just --yes bump {{ bump }}
+    git push
+    just --yes release
+
+[confirm]
 bump bump="minor":
     test -z "$(git status --porcelain)" || (echo "error: repo must be clean before bump" >&2; exit 1)
     uv version --bump {{ bump }}
