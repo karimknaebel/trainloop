@@ -27,10 +27,17 @@ except ImportError:
     pass
 
 try:
+    import numpy as np
+    from torch.utils.tensorboard import SummaryWriter
+except ImportError:
+    # only needed for TensorBoardHook
+    pass
+
+try:
     from PIL import Image
     from PIL.Image import Image as PILImage
 except ImportError:
-    # only needed for WandbHook JPEG conversion
+    # only needed for WandbHook and TensorBoardHook image conversion
     pass
 
 from .trainer import BaseTrainer, Records
@@ -736,6 +743,103 @@ class WandbHook(BaseHook):
         if f.exists():
             return f.read_text()
         return None
+
+
+class TensorBoardHook(BaseHook):
+    """Log metrics and images to TensorBoard (rank 0 only).
+
+    Args:
+        texts: Optional text values to log when training starts.
+        namespace_separator: Separator for nested tag prefixes; the final TensorBoard
+            name boundary is always "/".
+    """
+
+    def __init__(
+        self,
+        texts: dict[str, Any] | None = None,
+        namespace_separator: str = "/",
+    ):
+        self.writer = None
+        self.purge_step = None
+        self.texts = texts
+        self.namespace_separator = namespace_separator
+
+    def on_before_train(self, trainer: BaseTrainer):
+        if _dist_rank() == 0:
+            self._open_writer(trainer)
+            for k, v in (self.texts or {}).items():
+                self.writer.add_text(k, str(v))
+            self.writer.flush()
+
+    def on_load_state_dict(self, trainer: BaseTrainer, state_dict: dict):
+        self.purge_step = trainer.step + 1  # the step that will be logged next
+        if self.writer is not None:
+            self.writer.close()
+            self._open_writer(trainer)
+
+    def on_after_train(self, trainer: BaseTrainer):
+        if self.writer is None:
+            return
+
+        self.writer.close()
+        self.writer = None
+
+    def on_log(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
+        if self.writer is None:
+            return
+
+        data = {self._format_tag(k): v for k, v in flatten_nested_dict(records).items()}
+        if not dry_run:
+            for k, v in data.items():
+                self.writer.add_scalar(k, v, global_step=trainer.step)
+            self.writer.flush()
+        else:
+            trainer.logger.debug(f"Dry run log. Would log: {data}")
+
+    def on_log_images(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
+        if self.writer is None:
+            return
+
+        data = {
+            self._format_tag((*k, "image")): np.asarray(self._pil_to_rgb(v))
+            for k, v in flatten_nested_dict(records).items()
+        }
+        if not dry_run:
+            for k, v in data.items():
+                self.writer.add_image(k, v, global_step=trainer.step, dataformats="HWC")
+            self.writer.flush()
+        else:
+            trainer.logger.debug(f"Dry run log. Would log: {data}")
+
+    def _open_writer(self, trainer: BaseTrainer):
+        self.writer = SummaryWriter(
+            log_dir=str(trainer.workspace),
+            purge_step=self.purge_step,
+            max_queue=1_000,  # we already flush after every step
+        )
+        self.purge_step = None
+
+    def _format_tag(self, key: tuple[str, ...]):
+        *namespace, name = key
+        return (
+            f"{self.namespace_separator.join(namespace)}/{name}" if namespace else name
+        )
+
+    @staticmethod
+    def _pil_to_rgb(img: "PILImage", bg_color: tuple = (255, 255, 255)):
+        if img.mode == "RGB":
+            return img
+        elif img.mode == "L":
+            return img.convert("RGB")
+        elif img.mode in ("RGBA", "LA"):
+            background = Image.new("RGB", img.size, bg_color)
+            background.paste(img, mask=img.getchannel("A"))
+            return background
+        else:
+            warnings.warn(
+                f"Trying to convert {img.mode} to RGB in a best-effort manner."
+            )
+            return img.convert("RGB")
 
 
 class ImageFileLoggerHook(BaseHook):

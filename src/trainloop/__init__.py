@@ -6,6 +6,7 @@ from .hooks import (
     ImageFileLoggerHook,
     ProgressHook,
     StatsHook,
+    TensorBoardHook,
     TrainingStats,
     WandbHook,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "LossNoneWarning",
     "ProgressHook",
     "StatsHook",
+    "TensorBoardHook",
     "TrainingStats",
     "WandbHook",
     "map_nested_tensor",

@@ -330,6 +330,22 @@ Call `trainer.log()` and `trainer.log_images()` to send data to wandb. If
 `image_format` is callable, it receives the full flattened image key as a tuple.
 `WandbHook` expects PIL images.
 
+#### `TensorBoardHook`
+
+Logs metrics, images, and optional text values to TensorBoard.
+
+```python
+TensorBoardHook(
+    texts={"config": "learning_rate = 1e-3\nbatch_size = 32"},
+    namespace_separator="/",
+)
+```
+
+Call `trainer.log()` and `trainer.log_images()` to send data to TensorBoard.
+Nested record keys are joined with `namespace_separator`, with the final name
+separated by `/`. `TensorBoardHook` expects PIL images and writes events to the
+trainer workspace.
+
 #### `ImageFileLoggerHook`
 
 Saves images to disk (useful for debugging or visualization).
