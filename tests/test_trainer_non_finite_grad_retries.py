@@ -9,7 +9,9 @@ class _CaptureLogHook(BaseHook):
     def __init__(self):
         self.records = []
 
-    def on_log(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
+    def on_log_scalars(
+        self, trainer: BaseTrainer, records: dict, dry_run: bool = False
+    ):
         self.records.append(records)
 
 
@@ -41,7 +43,7 @@ class _RetryTrainer(BaseTrainer):
     def build_hooks(self):
         return [
             StatsHook(
-                lambda trainer, stats: trainer.log(
+                lambda trainer, stats: trainer.log_scalars(
                     {
                         "stats": {
                             "non_finite_grad_retries": stats.non_finite_grad_retries

@@ -83,7 +83,9 @@ class BaseHook:
     def on_after_train(self, trainer: BaseTrainer):
         pass
 
-    def on_log(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
+    def on_log_scalars(
+        self, trainer: BaseTrainer, records: dict, dry_run: bool = False
+    ):
         pass
 
     def on_log_images(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
@@ -627,6 +629,9 @@ class EMAHook(BaseHook):
 class WandbHook(BaseHook):
     """Log metrics and images to Weights & Biases (rank 0 only).
 
+    Nested scalar key components are joined with ``/``. Avoid ``/`` within an
+    individual component because it is also W&B's panel namespace separator.
+
     Args:
         project: W&B project name.
         config: Optional config dict or JSON file path to log.
@@ -678,7 +683,9 @@ class WandbHook(BaseHook):
         if _dist_rank() == 0:
             self.wandb.finish()
 
-    def on_log(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
+    def on_log_scalars(
+        self, trainer: BaseTrainer, records: dict, dry_run: bool = False
+    ):
         if _dist_rank() == 0:
             data = {"/".join(k): v for k, v in flatten_nested_dict(records).items()}
             if not dry_run:
@@ -748,6 +755,10 @@ class WandbHook(BaseHook):
 class TensorBoardHook(BaseHook):
     """Log metrics and images to TensorBoard (rank 0 only).
 
+    Nested namespace components are joined with ``namespace_separator`` and
+    the final name is separated with ``/``. Avoid these separators within
+    individual keys because TensorBoard uses them to organize tags.
+
     Args:
         texts: Optional text values to log when training starts.
         namespace_separator: Separator for nested tag prefixes; the final TensorBoard
@@ -784,7 +795,9 @@ class TensorBoardHook(BaseHook):
         self.writer.close()
         self.writer = None
 
-    def on_log(self, trainer: BaseTrainer, records: dict, dry_run: bool = False):
+    def on_log_scalars(
+        self, trainer: BaseTrainer, records: dict, dry_run: bool = False
+    ):
         if self.writer is None:
             return
 

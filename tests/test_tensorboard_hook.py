@@ -70,7 +70,7 @@ def test_tensorboard_uses_metric_first_scalar_sections():
     hook.writer = Mock()
     trainer = SimpleNamespace(step=10)
 
-    hook.on_log(
+    hook.on_log_scalars(
         trainer,
         {
             "loss": {"train": 0.5, "val.Hypersim": 0.4},

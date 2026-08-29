@@ -349,17 +349,22 @@ class BaseTrainer:
     def unwrapped_model(self):
         return self.unwrap(self.model)
 
-    def log(self, records: dict[str, Any], dry_run: bool = False):
+    def log_scalars(self, records: dict[str, Any], dry_run: bool = False):
         """
-        Dispatch numeric records to hooks (e.g., trackers or stdout).
+        Dispatch nested scalar records to logging hooks.
+
+        Dictionary keys are treated as path components. Logging hooks may join
+        nested components with backend-specific namespace separators, such as
+        ``/``. Avoid those separators within individual keys because distinct
+        nested paths may otherwise map to the same backend metric name.
 
         Args:
-            records: Nested dict of numeric metrics to log.
+            records: Nested dict of scalar metrics to log.
             dry_run: If True, hooks should avoid side effects and only report intent.
         """
-        self.logger.debug("log()")
+        self.logger.debug("log_scalars()")
         for h in self.hooks:
-            h.on_log(self, records, dry_run=dry_run)
+            h.on_log_scalars(self, records, dry_run=dry_run)
 
     def log_images(self, records: dict[str, Any], dry_run: bool = False):
         """

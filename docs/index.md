@@ -105,7 +105,7 @@ Because nearly every behavior lives behind hooks, most real-world setups fit wit
                 ProgressHook(interval=10, with_records=True),
                 CheckpointingHook(interval=1000, path=self.workspace / "checkpoints"),
                 StatsHook(
-                    lambda trainer, stats: trainer.log({
+                    lambda trainer, stats: trainer.log_scalars({
                         "train": {
                             "loss": stats.loss,
                             "lr": stats.param_groups[0]["lr"],
@@ -216,7 +216,7 @@ Hooks let you inject custom logic at key points in the training loop. All hooks 
 - `on_after_train(trainer)`: called once after training finishes.
 - `on_before_step(trainer)`: called before each training step.
 - `on_after_step(trainer)`: called after each training step.
-- `on_log(trainer, records, dry_run)`: called when the trainer logs metrics.
+- `on_log_scalars(trainer, records, dry_run)`: called when the trainer logs scalar metrics.
 - `on_log_images(trainer, records, dry_run)`: called when the trainer logs images.
 - `on_state_dict(trainer, state_dict)`: called when saving a checkpoint.
 - `on_load_state_dict(trainer, state_dict)`: called when loading a checkpoint.
@@ -244,11 +244,11 @@ Step   100/10000: step 0.2500s data 0.0100s eta 6:00:00 loss 0.5234 grad_norm 2.
 
 #### `StatsHook`
 
-Aggregates training stats at regular intervals and passes them to a callback. The callback owns any logging schema and may call `trainer.log(records)` if the project wants to send metrics to experiment trackers.
+Aggregates training stats at regular intervals and passes them to a callback. The callback owns any logging schema and may call `trainer.log_scalars(records)` if the project wants to send metrics to experiment trackers.
 
 ```python
 StatsHook(
-    lambda trainer, stats: trainer.log({
+    lambda trainer, stats: trainer.log_scalars({
         "train": {
             "loss": stats.loss,
             "lr": stats.param_groups[0]["lr"],
@@ -264,7 +264,7 @@ StatsHook(
 
 `param_group_keys` controls which optimizer param-group fields are sampled. This is useful for values like learning rate because schedulers usually update them for the next step after the current step finishes.
 
-Add a hook that handles `on_log` (e.g. WandbHook) if the callback calls `trainer.log()`.
+Add a hook that handles `on_log_scalars` (e.g. WandbHook) if the callback calls `trainer.log_scalars()`.
 
 #### `CheckpointingHook`
 
@@ -326,7 +326,9 @@ WandbHook(
 )
 ```
 
-Call `trainer.log()` and `trainer.log_images()` to send data to wandb. If
+Call `trainer.log_scalars()` and `trainer.log_images()` to send data to wandb.
+Nested scalar keys are joined with `/`; avoid `/` within individual keys because
+distinct nested paths can otherwise produce the same W&B metric name. If
 `image_format` is callable, it receives the full flattened image key as a tuple.
 `WandbHook` expects PIL images.
 
@@ -341,10 +343,11 @@ TensorBoardHook(
 )
 ```
 
-Call `trainer.log()` and `trainer.log_images()` to send data to TensorBoard.
-Nested record keys are joined with `namespace_separator`, with the final name
-separated by `/`. `TensorBoardHook` expects PIL images and writes events to the
-trainer workspace.
+Call `trainer.log_scalars()` and `trainer.log_images()` to send data to
+TensorBoard. Nested record keys are joined with `namespace_separator`, with the
+final name separated by `/`. Avoid these separators within individual keys
+because distinct nested paths can otherwise produce the same TensorBoard tag.
+`TensorBoardHook` expects PIL images and writes events to the trainer workspace.
 
 #### `ImageFileLoggerHook`
 
