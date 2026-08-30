@@ -47,7 +47,7 @@ def test_trainer_logs_incompatible_model_state_dict_keys(monkeypatch, caplog):
 def test_ema_hook_logs_incompatible_model_state_dict_keys(monkeypatch, caplog):
     logger = logging.getLogger("ema-state-dict-test")
     trainer = SimpleNamespace(logger=logger)
-    hook = EMAHook(decay=0.9)
+    hook = EMAHook(decay=0.9, name="ema_slow")
     hook.ema_model = torch.nn.Linear(1, 1)
     monkeypatch.setattr(
         trainloop.hooks,
@@ -58,7 +58,7 @@ def test_ema_hook_logs_incompatible_model_state_dict_keys(monkeypatch, caplog):
     )
 
     with caplog.at_level(logging.WARNING, logger="ema-state-dict-test"):
-        hook.on_load_state_dict(trainer, {"ema_model": {}})
+        hook.on_load_state_dict(trainer, {"ema_slow": {}})
 
     assert 'Missing keys in state_dict: "ema.missing".' in caplog.messages
     assert 'Unexpected keys in state_dict: "ema.unexpected".' in caplog.messages

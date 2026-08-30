@@ -590,14 +590,18 @@ class EMAHook(BaseHook):
     Args:
         decay: EMA decay rate.
         use_buffers: Whether to include model buffers in the EMA.
+        name: Name used for the EMA state in the trainer state dict.
     """
 
-    def __init__(self, decay: float = 0.999, use_buffers: bool = False):
+    def __init__(
+        self, decay: float = 0.999, use_buffers: bool = False, name: str = "ema"
+    ):
         self.decay = decay
         self.use_buffers = use_buffers
+        self.name = name
 
     def on_before_train(self, trainer: BaseTrainer):
-        trainer.logger.info("=> Creating EMA model ...")
+        trainer.logger.info(f"=> Creating EMA model {self.name!r} ...")
         # Note that AveragedModel does not seem to support FSDP. It will crash here.
         self.ema_model = AveragedModel(
             trainer.model,
@@ -610,10 +614,8 @@ class EMAHook(BaseHook):
         self.ema_model.update_parameters(trainer.model)
 
     def on_load_state_dict(self, trainer: BaseTrainer, state_dict: dict):
-        trainer.logger.info("=> Loading EMA model state ...")
-        incompatible_keys = set_model_state_dict(
-            self.ema_model, state_dict["ema_model"]
-        )
+        trainer.logger.info(f"=> Loading EMA model {self.name!r} state ...")
+        incompatible_keys = set_model_state_dict(self.ema_model, state_dict[self.name])
         # This currently doesn't do anything because strict=True is implicit.
         log_state_dict_incompatible_keys(
             trainer.logger,
@@ -622,8 +624,10 @@ class EMAHook(BaseHook):
         )
 
     def on_state_dict(self, trainer: BaseTrainer, state_dict: dict):
+        if self.name in state_dict:
+            raise ValueError(f"State dict key {self.name!r} already exists")
         # Note: sadly, we need to keep the AveragedModel wrapper, to save its n_averaged buffer
-        state_dict["ema_model"] = get_model_state_dict(self.ema_model)
+        state_dict[self.name] = get_model_state_dict(self.ema_model)
 
 
 class WandbHook(BaseHook):

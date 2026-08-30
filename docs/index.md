@@ -307,10 +307,18 @@ Maintains an exponential moving average (EMA) of model weights.
 EMAHook(
     decay=0.999,                # EMA decay rate
     use_buffers=False,          # include model buffers in the EMA
+    name="ema",                 # trainer state-dict key and checkpoint filename
 )
 ```
 
 Access the EMA model via `hook.ema_model`.
+
+Give each hook a distinct name when maintaining multiple EMAs:
+
+```python
+fast_ema = EMAHook(decay=0.9, name="ema_fast")
+slow_ema = EMAHook(decay=0.9999, name="ema_slow")
+```
 
 #### `WandbHook`
 
