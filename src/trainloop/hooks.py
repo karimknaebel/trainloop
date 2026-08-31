@@ -602,7 +602,8 @@ class EMAHook(BaseHook):
 
     def on_before_train(self, trainer: BaseTrainer):
         trainer.logger.info(f"=> Creating EMA model {self.name!r} ...")
-        # Note that AveragedModel does not seem to support FSDP. It will crash here.
+        # NOTE: AveragedModel does not seem to support FSDP. It will crash here.
+        # NOTE: AveragedModel's deepcopy clears _compiled_call_impl; compiled trainer.model does not imply compiled ema_model.
         self.ema_model = AveragedModel(
             trainer.model,
             multi_avg_fn=get_ema_multi_avg_fn(self.decay),
